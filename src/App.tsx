@@ -1,15 +1,16 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import AgentDashboardPage from './pages/AgentDashboardPage';
 
 function App() {
   return (
-    <BrowserRouter>
+    <Router>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/dashboard/agent" element={<AgentDashboardPage />} />
+        <Route path="/dashboard" element={<AgentDashboardPage />} />
       </Routes>
-    </BrowserRouter>
+    </Router>
   );
 }
+
 export default App;
