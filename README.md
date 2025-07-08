@@ -1,69 +1,39 @@
-# React + TypeScript + Vite
+# 🏠 Rentify Kenya
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern full-stack real estate web app tailored for the Kenyan market — allowing tenants to browse listings and verified agents to manage property ads securely and efficiently.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🚀 Features
 
-## Expanding the ESLint configuration
+- 🔐 Supabase Auth for user login/register (Agent & Tenant roles)
+- 🏢 Agent dashboard with metrics (listings, views, saves)
+- 🧠 Google Gemini AI content scan for image moderation
+- 🏞 Upload listing photos to Supabase Storage
+- 🧪 TypeScript with clean architecture
+- 🎨 Tailwind CSS for modern UI
+- 📱 Mobile-responsive design
+- 🔍 Location-based filtering
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+---
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## 🛠️ Technologies Used
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+| Stack        | Tech                                                                 |
+|--------------|----------------------------------------------------------------------|
+| Frontend     | React + Vite + TypeScript                                            |
+| Styling      | Tailwind CSS                                                         |
+| Backend      | Supabase (PostgreSQL, Auth, Storage, Edge Functions)                |
+| AI Features  | Google Gemini API integration via Supabase Edge Functions           |
+| Testing      | Jest (optional for component/unit testing)                           |
+| Deployment   | Vercel / Netlify (recommended)                                       |
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+---
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 📦 Setup Instructions
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### 1. Clone the Repo
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+```bash
+git clone https://github.com/<your-username>/rentify-houses-kenya.git
+cd rentify-houses-kenya
