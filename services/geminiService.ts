@@ -1,5 +1,4 @@
-
-import { GoogleGenAI, GenerateContentResponse, Chat, GroundingChunk } from "@google/genai";
+import { GoogleGenerativeAI, GenerateContentResponse, Chat, GroundingChunk } from "@google/generative-ai";
 import { PropertyListing, AiEnhancedContent, RentEstimate } from '../types';
 
 // IMPORTANT: API Key Management
@@ -7,13 +6,13 @@ import { PropertyListing, AiEnhancedContent, RentEstimate } from '../types';
 // This client-side code assumes `process.env.API_KEY` is replaced by a build tool (e.g., Vite, Webpack)
 // or handled by the execution environment if this code runs server-side (e.g. Next.js API route).
 // DO NOT hardcode the API key here or expose it directly in client-side bundles without obfuscation.
-const API_KEY = process.env.API_KEY;
+const API_KEY = import.meta.env.VITE_API_KEY;
 
 if (!API_KEY) {
   console.warn("Gemini API Key not found. AI features will be disabled. Ensure process.env.API_KEY is set.");
 }
 
-const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
+const ai = API_KEY ? new GoogleGenerativeAI({ apiKey: API_KEY }) : null;
 const TEXT_MODEL_NAME = "gemini-2.5-flash-preview-04-17";
 // const IMAGE_MODEL_NAME = "imagen-3.0-generate-002"; // If image generation is needed
 
