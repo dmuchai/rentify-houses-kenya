@@ -35,5 +35,69 @@ A modern full-stack real estate web app tailored for the Kenyan market — allow
 ### 1. Clone the Repo
 
 ```bash
-git clone https://github.com/<your-username>/rentify-houses-kenya.git
+git clone https://github.com/dmuchai/rentify-houses-kenya.git
 cd rentify-houses-kenya
+
+### 2. Install dependencies
+Make sure you have Node.js ≥ v16 and npm installed:
+
+npm install
+
+### 3. Configure environment variables
+Create a .env file in the root directory:
+
+cp .env.example .env
+
+Update the .env file with your Supabase project and Gemini API credentials:
+GEMINI_API_KEY=your-gemini-key
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+
+### 4. Start the development server
+npm run dev
+The app should now be available at: http://localhost:5173
+
+### 5. Build for production
+npm run build
+To preview the build locally:
+
+npm run preview
+
+📦 Features
+🔍 Property search with filters
+
+🖼️ Image carousels with AI scan warnings
+
+�� Agent contact forms
+
+📍 Listings by location (county, neighborhood)
+
+📊 Rent estimation via Gemini API (coming soon)
+
+🔐 Authentication
+Handled by Supabase Auth. Users can log in as:
+
+Tenants
+
+Agents
+
+
+🌍 Deployment
+You can deploy this project to:
+
+Vercel
+
+Netlify
+
+Render
+
+Make sure to configure environment variables on your hosting platform.
+
+🤝 Contributing
+Contributions are welcome! Please fork the repo and submit a pull request.
+
+📄 License
+This project is licensed under the MIT License.
+
+👤 Author
+Dennis Muchai
