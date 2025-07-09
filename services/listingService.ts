@@ -1,6 +1,59 @@
 import { supabase } from './supabaseClient';
-import { PropertyListing, AgentMetrics, UserRole } from '../types';
+import { PropertyListing, AgentMetrics, UserRole, PropertyImage } from '../types';
 import { SearchFilters } from '../components/SearchBar';
+
+// Helper function to transform images
+const transformImages = (images: any): PropertyImage[] => {
+  if (!images) return [];
+  
+  if (Array.isArray(images) && images.length > 0) {
+    const firstImg = images[0];
+    
+    // Images from property_images table
+    if (firstImg && (firstImg.id || firstImg.url)) {
+      return images.map((img: any, index: number) => ({
+        id: img.id || `img-${index}`,
+        url: img.url,
+        altText: undefined,
+        aiScanStatus: img.ai_scan?.status || 'pending' as const,
+        aiScanReason: img.ai_scan?.reason || undefined
+      }));
+    }
+    
+    // Legacy JSONB format
+    return images.map((img: any, index: number) => {
+      if (typeof img === 'string') {
+        return {
+          id: `img-${index}`,
+          url: img,
+          altText: undefined,
+          aiScanStatus: 'pending' as const,
+          aiScanReason: undefined
+        };
+      }
+      return {
+        id: img.id || `img-${index}`,
+        url: img.url || img,
+        altText: img.altText || undefined,
+        aiScanStatus: img.aiScanStatus || 'pending' as const,
+        aiScanReason: img.aiScanReason || undefined
+      };
+    });
+  }
+  
+  // Single image URL
+  if (typeof images === 'string') {
+    return [{
+      id: 'img-0',
+      url: images,
+      altText: undefined,
+      aiScanStatus: 'pending' as const,
+      aiScanReason: undefined
+    }];
+  }
+  
+  return [];
+};
 
 // Maps camelCase → snake_case before insert/update
 const toDbFormat = (listing: Partial<PropertyListing>) => {
@@ -47,59 +100,7 @@ const fromDbFormat = (listing: any): PropertyListing => ({
     ? JSON.parse(listing.location)
     : listing.location,
 
-  images: (() => {
-    // Check if we have images from property_images table (relational)
-    if (listing.images && Array.isArray(listing.images) && listing.images.length > 0) {
-      // Check if the first item has an 'id' property (from property_images table)
-      const firstImg = listing.images[0];
-      if (firstImg && (firstImg.id || firstImg.url)) {
-        return listing.images.map((img: any, index: number) => ({
-          id: img.id || `img-${index}`,
-          url: img.url,
-          altText: undefined,
-          aiScanStatus: img.ai_scan?.status || 'pending' as const,
-          aiScanReason: img.ai_scan?.reason || undefined
-        }));
-      }
-    }
-    
-    // Check for JSONB images (legacy format)
-    if (listing.images && Array.isArray(listing.images)) {
-      return listing.images.map((img: any, index: number) => {
-        // Handle string URLs
-        if (typeof img === 'string') {
-          return {
-            id: `img-${index}`,
-            url: img,
-            altText: undefined,
-            aiScanStatus: 'pending' as const,
-            aiScanReason: undefined
-          };
-        }
-        // Handle image objects
-        return {
-          id: img.id || `img-${index}`,
-          url: img.url || img,
-          altText: img.altText || undefined,
-          aiScanStatus: img.aiScanStatus || 'pending' as const,
-          aiScanReason: img.aiScanReason || undefined
-        };
-      });
-    }
-    
-    // Handle single image URL as string
-    if (typeof listing.images === 'string') {
-      return [{
-        id: 'img-0',
-        url: listing.images,
-        altText: undefined,
-        aiScanStatus: 'pending' as const,
-        aiScanReason: undefined
-      }];
-    }
-    
-    return [];
-  })(),
+  images: transformImages(listing.images),
 
   agent: listing.agent
     ? {
@@ -202,15 +203,7 @@ const getListingById = async (id: string) => {
     .single();
 
   if (error) throw error;
-  
-  // Debug: Log the raw data to see image structure
-  console.log('Raw listing data:', data);
-  console.log('Raw images data:', data.images);
-  
-  const result = fromDbFormat(data);
-  console.log('Formatted listing images:', result.images);
-  
-  return result;
+  return fromDbFormat(data);
 };
 
 const createListing = async (
