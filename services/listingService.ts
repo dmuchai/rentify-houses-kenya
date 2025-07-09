@@ -3,13 +3,28 @@ import { PropertyListing, AgentMetrics, UserRole } from '../types';
 import { SearchFilters } from '../components/SearchBar';
 
 // Maps camelCase → snake_case before insert/update
-const toDbFormat = (listing: Partial<PropertyListing>) => ({
-  ...listing,
-  area_sq_ft: listing.areaSqFt,
-  is_featured: listing.isFeatured,
-  areaSqFt: undefined,
-  isFeatured: undefined,
-});
+const toDbFormat = (listing: Partial<PropertyListing>) => {
+  const dbListing: any = {
+    ...listing,
+    area_sq_ft: listing.areaSqFt,
+    is_featured: listing.isFeatured,
+    areaSqFt: undefined,
+    isFeatured: undefined,
+  };
+
+  // Handle images - convert PropertyImage[] to JSONB format
+  if (listing.images && Array.isArray(listing.images)) {
+    dbListing.images = listing.images.map(img => ({
+      id: img.id,
+      url: img.url,
+      altText: img.altText,
+      aiScanStatus: img.aiScanStatus,
+      aiScanReason: img.aiScanReason
+    }));
+  }
+
+  return dbListing;
+};
 
 // Maps Supabase snake_case → frontend camelCase
 const fromDbFormat = (listing: any): PropertyListing => ({
@@ -32,13 +47,59 @@ const fromDbFormat = (listing: any): PropertyListing => ({
     ? JSON.parse(listing.location)
     : listing.location,
 
-  images: (listing.images || []).map((img: any) => ({
-    id: img.id || '',
-    url: img.url,
-    altText: img.altText || undefined,
-    aiScanStatus: img.aiScanStatus || 'pending',
-    aiScanReason: img.aiScanReason || undefined
-  })),
+  images: (() => {
+    // Check if we have images from property_images table (relational)
+    if (listing.images && Array.isArray(listing.images) && listing.images.length > 0) {
+      // Check if the first item has an 'id' property (from property_images table)
+      const firstImg = listing.images[0];
+      if (firstImg && (firstImg.id || firstImg.url)) {
+        return listing.images.map((img: any, index: number) => ({
+          id: img.id || `img-${index}`,
+          url: img.url,
+          altText: undefined,
+          aiScanStatus: img.ai_scan?.status || 'pending' as const,
+          aiScanReason: img.ai_scan?.reason || undefined
+        }));
+      }
+    }
+    
+    // Check for JSONB images (legacy format)
+    if (listing.images && Array.isArray(listing.images)) {
+      return listing.images.map((img: any, index: number) => {
+        // Handle string URLs
+        if (typeof img === 'string') {
+          return {
+            id: `img-${index}`,
+            url: img,
+            altText: undefined,
+            aiScanStatus: 'pending' as const,
+            aiScanReason: undefined
+          };
+        }
+        // Handle image objects
+        return {
+          id: img.id || `img-${index}`,
+          url: img.url || img,
+          altText: img.altText || undefined,
+          aiScanStatus: img.aiScanStatus || 'pending' as const,
+          aiScanReason: img.aiScanReason || undefined
+        };
+      });
+    }
+    
+    // Handle single image URL as string
+    if (typeof listing.images === 'string') {
+      return [{
+        id: 'img-0',
+        url: listing.images,
+        altText: undefined,
+        aiScanStatus: 'pending' as const,
+        aiScanReason: undefined
+      }];
+    }
+    
+    return [];
+  })(),
 
   agent: listing.agent
     ? {
@@ -75,6 +136,11 @@ const getListings = async (filters?: SearchFilters & { agentId?: string }) => {
         is_verified_agent,
         phone_number,
         profile_picture_url
+      ),
+      images:property_images (
+        id,
+        url,
+        ai_scan
       )
     `)
     .order('created_at', { ascending: false });
@@ -127,14 +193,24 @@ const getListingById = async (id: string) => {
         profile_picture_url
       ),
       images:property_images (
-        url
+        id,
+        url,
+        ai_scan
       )
     `)
     .eq('id', id)
     .single();
 
   if (error) throw error;
-  return fromDbFormat(data);
+  
+  // Debug: Log the raw data to see image structure
+  console.log('Raw listing data:', data);
+  console.log('Raw images data:', data.images);
+  
+  const result = fromDbFormat(data);
+  console.log('Formatted listing images:', result.images);
+  
+  return result;
 };
 
 const createListing = async (
@@ -144,6 +220,9 @@ const createListing = async (
     ...toDbFormat(listing),
     status: 'pending_verification',
   };
+
+  // Don't store images in JSONB column - use property_images table instead
+  delete listingToInsert.images;
 
   const { data, error } = await supabase
     .from('listings')
@@ -166,11 +245,12 @@ const createListing = async (
     throw error;
   }
 
-  // Insert associated images if any were provided
+  // Insert images into property_images table if provided
   if (listing.images && listing.images.length > 0) {
     const imagesToInsert = listing.images.map((url) => ({
       listing_id: data.id,
       url,
+      ai_scan: { status: 'pending', scanned_at: null }
     }));
 
     const { error: imageError } = await supabase
@@ -179,10 +259,11 @@ const createListing = async (
 
     if (imageError) {
       console.error('[createListing] Failed to insert images:', imageError);
-      // Optional: throw or just warn
     }
   }
-  return fromDbFormat(data);
+
+  // Fetch the complete listing with images
+  return await getListingById(data.id);
 };
 
 const updateListing = async (

@@ -147,9 +147,78 @@ const ListingDetailPage: React.FC = () => {
   return (
     <div className="bg-white p-4 md:p-8 rounded-lg shadow-xl max-w-4xl mx-auto">
       <ImageCarousel
-       images={listing.images.map(url => ({ url, aiScanStatus: 'clean' }))}
-       altText={listing.title}
+        images={listing.images.length > 0 
+          ? listing.images 
+          : [{ 
+              id: 'placeholder', 
+              url: PlaceholderImage(800, 600), 
+              altText: 'Property placeholder',
+              aiScanStatus: 'clear' as const 
+            }]
+        }
+        altText={listing.title}
       />
+
+      {/* Property Details */}
+      <div className="mt-6">
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">{listing.title}</h1>
+        <div className="flex items-center text-gray-600 mb-4">
+          <MapPinIcon className="w-5 h-5 mr-2" />
+          <span>{listing.location.address}, {listing.location.neighborhood}, {listing.location.county}</span>
+        </div>
+        
+        <div className="flex items-center justify-between mb-6">
+          <div className="text-3xl font-bold text-green-600">{formatPrice(listing.price)}/month</div>
+          <div className="flex items-center space-x-4 text-sm text-gray-600">
+            <span className="bg-gray-100 px-3 py-1 rounded-full">{listing.bedrooms} Bedroom{listing.bedrooms > 1 ? 's' : ''}</span>
+            <span className="bg-gray-100 px-3 py-1 rounded-full">{listing.bathrooms} Bathroom{listing.bathrooms > 1 ? 's' : ''}</span>
+            {listing.areaSqFt && <span className="bg-gray-100 px-3 py-1 rounded-full">{listing.areaSqFt} sqft</span>}
+          </div>
+        </div>
+
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold text-gray-800 mb-3">Description</h2>
+          <p className="text-gray-700 leading-relaxed">{listing.description}</p>
+        </div>
+
+        {listing.amenities && listing.amenities.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-3">Amenities</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {listing.amenities.map((amenity, index) => (
+                <div key={index} className="flex items-center text-sm text-gray-700">
+                  <CheckBadgeIcon className="w-4 h-4 mr-2 text-green-500" />
+                  {amenity}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Rent Estimate Section */}
+        <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+              <SparklesIcon className="w-5 h-5 mr-2 text-blue-500" />
+              AI Rent Estimate
+            </h3>
+            <Button 
+              onClick={handleFetchRentEstimate} 
+              isLoading={isLoadingEstimate}
+              variant="outline" 
+              size="sm"
+            >
+              Get Estimate
+            </Button>
+          </div>
+          {rentEstimate && (
+            <div className="text-sm text-gray-700">
+              <p>Estimated rent range: {formatPrice(rentEstimate.min)} - {formatPrice(rentEstimate.max)}</p>
+              <p>Average: {formatPrice(rentEstimate.avg)} (Confidence: {rentEstimate.confidence})</p>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* ... Listing Info, Amenities, Rent Estimate ... */}
 
