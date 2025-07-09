@@ -24,7 +24,7 @@ const Select: React.FC<SelectProps> = ({ label, name, error, options, className 
       <select
         id={name}
         name={name}
-        className={`mt-1 block w-full px-3 py-2 border ${error ? 'border-red-500' : 'border-gray-300'} bg-white rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm ${className}`}
+        className={`mt-1 block w-full px-3 py-2 border ${error ? 'border-red-500' : 'border-gray-300'} bg-white rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm text-gray-900 ${className}`}
         {...props}
       >
         {placeholder && <option value="" className="text-gray-500">{placeholder}</option>}
