@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
-import { PropertyListing, AgentMetrics } from '../types';
+import { PropertyListing, AgentMetrics, UserRole } from '../types';
+import { SearchFilters } from '../components/SearchBar';
 
 // Maps camelCase → snake_case before insert/update
 const toDbFormat = (listing: Partial<PropertyListing>) => ({
@@ -26,13 +27,18 @@ const fromDbFormat = (listing: any): PropertyListing => ({
   updatedAt: listing.updated_at,
   saves: listing.saves || 0,
   views: listing.views || 0,
-  rating: listing.rating || null,
 
   location: typeof listing.location === 'string'
     ? JSON.parse(listing.location)
     : listing.location,
 
-  images: (listing.images || []).map((img: { url: string }) => img.url),
+  images: (listing.images || []).map((img: any) => ({
+    id: img.id || '',
+    url: img.url,
+    altText: img.altText || undefined,
+    aiScanStatus: img.aiScanStatus || 'pending',
+    aiScanReason: img.aiScanReason || undefined
+  })),
 
   agent: listing.agent
     ? {
@@ -42,7 +48,7 @@ const fromDbFormat = (listing: any): PropertyListing => ({
         phoneNumber: listing.agent.phone_number || '',
         isVerifiedAgent: listing.agent.is_verified_agent || false,
         profilePictureUrl: listing.agent.profile_picture_url || '',
-        role: 'agent',
+        role: UserRole.AGENT,
         createdAt: '',
       }
     : {
@@ -52,12 +58,12 @@ const fromDbFormat = (listing: any): PropertyListing => ({
         phoneNumber: '',
         isVerifiedAgent: false,
         profilePictureUrl: '',
-        role: 'agent',
+        role: UserRole.AGENT,
         createdAt: '',
       }
 });
 
-const getListings = async (filters?: { agentId?: string }) => {
+const getListings = async (filters?: SearchFilters & { agentId?: string }) => {
   let query = supabase
     .from('listings')
     .select(`
@@ -73,8 +79,32 @@ const getListings = async (filters?: { agentId?: string }) => {
     `)
     .order('created_at', { ascending: false });
 
+  // Apply filters
   if (filters?.agentId) {
     query = query.eq('agent_id', filters.agentId);
+  }
+
+  if (filters?.bedrooms) {
+    query = query.eq('bedrooms', filters.bedrooms);
+  }
+
+  if (filters?.county) {
+    // Query the location JSON field for county
+    query = query.contains('location', { county: filters.county });
+  }
+
+  if (filters?.location) {
+    // Search in title, description, and location fields
+    // For location, we'll search in address and neighborhood fields of the JSON
+    query = query.or(`title.ilike.%${filters.location}%,description.ilike.%${filters.location}%,location->>address.ilike.%${filters.location}%,location->>neighborhood.ilike.%${filters.location}%`);
+  }
+
+  if (filters?.minPrice) {
+    query = query.gte('price', filters.minPrice);
+  }
+
+  if (filters?.maxPrice) {
+    query = query.lte('price', filters.maxPrice);
   }
 
   const { data, error } = await query;
@@ -108,7 +138,7 @@ const getListingById = async (id: string) => {
 };
 
 const createListing = async (
-  listing: Omit<PropertyListing, 'id' | 'createdAt' | 'updatedAt' | 'agent' | 'views' | 'images' | 'saves'>
+  listing: Omit<PropertyListing, 'id' | 'createdAt' | 'updatedAt' | 'agent' | 'views' | 'saves'> & { images?: string[] }
 ): Promise<PropertyListing> => {
   const listingToInsert = {
     ...toDbFormat(listing),
@@ -136,10 +166,10 @@ const createListing = async (
     throw error;
   }
 
-// Insert associated images if any were provided
+  // Insert associated images if any were provided
   if (listing.images && listing.images.length > 0) {
     const imagesToInsert = listing.images.map((url) => ({
-      listing_id: insertedListing.id,
+      listing_id: data.id,
       url,
     }));
 
@@ -210,7 +240,7 @@ const getAgentMetrics = async (agentId: string): Promise<AgentMetrics> => {
     totalViews: 0,
     totalSaves: 0,
     totalInquiries: 0,
-    averageRating: null,
+    averageRating: undefined,
   };
 };
 
