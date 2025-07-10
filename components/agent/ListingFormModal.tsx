@@ -16,7 +16,7 @@ interface ListingFormModalProps {
     imageFiles: File[]
   ) => Promise<void>;
   initialData?: PropertyListing | null;
-  agent: User;
+  agent?: User;
 }
 
 const ListingFormModal: React.FC<ListingFormModalProps> = ({ isOpen, onClose, onSubmit, initialData, agent }) => {

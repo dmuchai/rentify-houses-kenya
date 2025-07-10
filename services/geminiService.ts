@@ -102,7 +102,7 @@ export const geminiService = {
         contents: prompt,
         config: { responseMimeType: "application/json" }
       });
-      return parseJsonResponse<AiEnhancedContent>(response.text);
+      return parseJsonResponse<AiEnhancedContent>(response.text || '');
     } catch (error) {
       console.error("Error enhancing listing content with Gemini:", error);
       return null;
@@ -144,7 +144,7 @@ export const geminiService = {
         }
       });
       
-      const parsed = parseJsonResponse<RentEstimate>(response.text);
+      const parsed = parseJsonResponse<RentEstimate>(response.text || '');
       if(parsed){
         // Log grounding sources if available
         const groundingChunks: GroundingChunk[] | undefined = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
@@ -204,7 +204,7 @@ export const geminiService = {
     try {
       // For a real app, you might have a conversation history.
       const result: GenerateContentResponse = await chat.sendMessage({message: query});
-      return result.text;
+      return result.text || '';
     } catch (error) {
       console.error("Error with smart assistant:", error);
       return "Sorry, I'm having trouble understanding that right now. Please try rephrasing.";
@@ -225,7 +225,7 @@ export const geminiService = {
         let fullText = "";
         for await (const chunk of responseStream) {
             fullText += chunk.text;
-            streamingCallback(chunk.text);
+            streamingCallback(chunk.text || '');
         }
         return fullText;
       } else {
@@ -233,7 +233,7 @@ export const geminiService = {
             model: TEXT_MODEL_NAME,
             contents: prompt,
         });
-        return response.text;
+        return response.text || '';
       }
     } catch (error) {
         console.error("Error generating text with Gemini:", error);
