@@ -7,6 +7,9 @@ import ListingsPage from './pages/ListingsPage';
 import ListingDetailPage from './pages/ListingDetailPage';
 import AgentDashboardPage from './pages/AgentDashboardPage';
 import AuthPage from './pages/AuthPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import TermsOfServicePage from './pages/TermsOfServicePage';
+import ContactUsPage from './pages/ContactUsPage';
 import { useAuth } from './hooks/useAuth';
 
 const App: React.FC = () => {
@@ -29,11 +32,13 @@ const App: React.FC = () => {
           <Route path="/" element={<HomePage />} />
           <Route path="/listings" element={<ListingsPage />} />
           <Route path="/listing/:id" element={<ListingDetailPage />} />
-          <Route 
-            path="/dashboard/agent" 
+          <Route path="/dashboard/agent" 
             element={user ? <AgentDashboardPage /> : <Navigate to="/auth?mode=login&returnTo=/dashboard/agent" replace />} 
           />
           <Route path="/auth" element={<AuthPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+          <Route path="/contact-us" element={<ContactUsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} /> {/* Fallback route */}
         </Routes>
       </main>
