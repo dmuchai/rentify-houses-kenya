@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import ListingCard from '../components/ListingCard';
 import SearchBar, { SearchFilters } from '../components/SearchBar';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -17,9 +17,22 @@ const ListingsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const locationHook = useLocation(); // from react-router-dom
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   
+  // Get initial filters from both state and URL parameters
   const initialFiltersFromState = (locationHook.state as { initialSearchFilters?: SearchFilters })?.initialSearchFilters || {};
-  const [currentFilters, setCurrentFilters] = useState<SearchFilters>(initialFiltersFromState);
+  const initialFiltersFromURL: SearchFilters = {
+    location: searchParams.get('location') || undefined,
+    county: searchParams.get('county') || undefined,
+    minPrice: searchParams.get('minPrice') ? Number(searchParams.get('minPrice')) : undefined,
+    maxPrice: searchParams.get('maxPrice') ? Number(searchParams.get('maxPrice')) : undefined,
+    bedrooms: searchParams.get('bedrooms') ? Number(searchParams.get('bedrooms')) : undefined,
+  };
+  
+  // Merge URL params with state, giving priority to URL params
+  const initialFilters = { ...initialFiltersFromState, ...Object.fromEntries(Object.entries(initialFiltersFromURL).filter(([, value]) => value !== undefined)) };
+  const [currentFilters, setCurrentFilters] = useState<SearchFilters>(initialFilters);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   const fetchListings = useCallback(async (filters: SearchFilters) => {
@@ -38,7 +51,22 @@ const ListingsPage: React.FC = () => {
 
   useEffect(() => {
     fetchListings(currentFilters);
-  }, [fetchListings, currentFilters]);
+    
+    // Update URL with current filters
+    const newSearchParams = new URLSearchParams();
+    Object.entries(currentFilters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        newSearchParams.set(key, value.toString());
+      }
+    });
+    
+    // Only update URL if search params actually changed
+    const currentParamsString = searchParams.toString();
+    const newParamsString = newSearchParams.toString();
+    if (currentParamsString !== newParamsString) {
+      navigate(`/listings${newParamsString ? `?${newParamsString}` : ''}`, { replace: true });
+    }
+  }, [fetchListings, currentFilters, navigate, searchParams]);
 
   const handleSearch = (filters: SearchFilters) => {
     setCurrentFilters(filters);
