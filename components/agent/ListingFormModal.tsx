@@ -13,7 +13,8 @@ interface ListingFormModalProps {
   onClose: () => void;
   onSubmit: (
     formData: Omit<PropertyListing, 'id' | 'createdAt' | 'updatedAt' | 'views' | 'saves' | 'agent' | 'images'>,
-    imageFiles: File[]
+    imageFiles: File[],
+    imagesToRemove?: string[]
   ) => Promise<void>;
   initialData?: PropertyListing | null;
   agent?: User;
@@ -37,6 +38,8 @@ const ListingFormModal: React.FC<ListingFormModalProps> = ({ isOpen, onClose, on
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
   const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [existingImages, setExistingImages] = useState<PropertyImage[]>([]);
+  const [imagesToRemove, setImagesToRemove] = useState<string[]>([]);
   const [isEnhancing, setIsEnhancing] = useState(false);
 
   useEffect(() => {
@@ -54,6 +57,8 @@ const ListingFormModal: React.FC<ListingFormModalProps> = ({ isOpen, onClose, on
           amenities: editableData.amenities ?? [],
           images: editableData.images ?? [],
         });
+        setExistingImages(editableData.images ?? []);
+        setImagesToRemove([]);
       } else {
         setFormData({
           title: '',
@@ -68,6 +73,8 @@ const ListingFormModal: React.FC<ListingFormModalProps> = ({ isOpen, onClose, on
           status: 'pending_verification',
           isFeatured: false,
         });
+        setExistingImages([]);
+        setImagesToRemove([]);
       }
       setImageFiles([]);
       setFormError('');
@@ -112,6 +119,26 @@ const ListingFormModal: React.FC<ListingFormModalProps> = ({ isOpen, onClose, on
     }
   };
 
+  const removeExistingImage = (imageId: string) => {
+    setImagesToRemove(prev => [...prev, imageId]);
+    setExistingImages(prev => prev.filter(img => img.id !== imageId));
+  };
+
+  const removeNewImage = (index: number) => {
+    setImageFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const restoreExistingImage = (imageId: string) => {
+    setImagesToRemove(prev => prev.filter(id => id !== imageId));
+    // Find the image in the original data and restore it
+    if (initialData?.images) {
+      const imageToRestore = initialData.images.find(img => img.id === imageId);
+      if (imageToRestore) {
+        setExistingImages(prev => [...prev, imageToRestore]);
+      }
+    }
+  };
+
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -119,7 +146,7 @@ const ListingFormModal: React.FC<ListingFormModalProps> = ({ isOpen, onClose, on
     const { images, ...restOfData } = formData;
 
     try {
-      await onSubmit(restOfData, imageFiles);
+      await onSubmit(restOfData, imageFiles, imagesToRemove);
       onClose();
     } catch (err: any) {
       setFormError(err.message || 'Failed to submit listing.');
@@ -197,7 +224,55 @@ const ListingFormModal: React.FC<ListingFormModalProps> = ({ isOpen, onClose, on
           <Textarea label="Amenities (comma-separated)" name="amenities-text" value={(formData.amenities ?? []).join(', ')} onChange={handleChange} placeholder="e.g. Parking, Balcony, Borehole" />
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Images (select multiple)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Images</label>
+            
+            {/* Existing Images */}
+            {existingImages.length > 0 && (
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-2">Current Images:</p>
+                <div className="flex flex-wrap gap-2">
+                  {existingImages.map(img => (
+                    <div key={img.id} className="relative w-20 h-20 border rounded overflow-hidden group">
+                      <img src={img.url} alt={img.altText || 'property image'} className="w-full h-full object-cover" />
+                      {img.aiScanStatus?.startsWith('flagged') && (
+                        <div title={img.aiScanReason} className="absolute top-0 left-0 bg-yellow-400 text-xs p-0.5 rounded-br-md">⚠️</div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeExistingImage(img.id)}
+                        className="absolute top-0 right-0 bg-red-500 text-white rounded-bl-md text-xs px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Remove image"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Removed Images (with option to restore) */}
+            {imagesToRemove.length > 0 && (
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-2">Removed Images (click to restore):</p>
+                <div className="flex flex-wrap gap-2">
+                  {imagesToRemove.map(imageId => {
+                    const img = initialData?.images?.find(i => i.id === imageId);
+                    if (!img) return null;
+                    return (
+                      <div key={img.id} className="relative w-20 h-20 border-2 border-red-300 rounded overflow-hidden opacity-50 cursor-pointer hover:opacity-75" onClick={() => restoreExistingImage(img.id)}>
+                        <img src={img.url} alt={img.altText || 'property image'} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-red-500 bg-opacity-30 flex items-center justify-center">
+                          <span className="text-white text-xs">Restore</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Add New Images */}
             <input
               type="file"
               name="images"
@@ -206,21 +281,31 @@ const ListingFormModal: React.FC<ListingFormModalProps> = ({ isOpen, onClose, on
               accept="image/*"
               className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
             />
-            <div className="mt-2 flex flex-wrap gap-2">
-              {imageFiles.map((file, index) => (
-                <div key={index} className="w-20 h-20 border rounded overflow-hidden">
-                  <img src={URL.createObjectURL(file)} alt={file.name} className="w-full h-full object-cover" />
+            
+            {/* New Images Preview */}
+            {imageFiles.length > 0 && (
+              <div className="mt-2">
+                <p className="text-sm text-gray-600 mb-2">New Images:</p>
+                <div className="flex flex-wrap gap-2">
+                  {imageFiles.map((file, index) => (
+                    <div key={index} className="relative w-20 h-20 border-2 border-green-300 rounded overflow-hidden group">
+                      <img src={URL.createObjectURL(file)} alt={file.name} className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removeNewImage(index)}
+                        className="absolute top-0 right-0 bg-red-500 text-white rounded-bl-md text-xs px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Remove image"
+                      >
+                        ×
+                      </button>
+                      <div className="absolute bottom-0 left-0 bg-green-500 text-white text-xs px-1 py-0.5 rounded-tr-md">
+                        New
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-              {imageFiles.length === 0 && (initialData?.images ?? []).map(img => (
-                <div key={img.id} className="w-20 h-20 border rounded overflow-hidden relative">
-                  <img src={img.url} alt={img.altText || 'property image'} className="w-full h-full object-cover" />
-                  {img.aiScanStatus?.startsWith('flagged') && (
-                    <div title={img.aiScanReason} className="absolute top-0 right-0 bg-yellow-400 text-xs p-0.5 rounded-bl-md">⚠️</div>
-                  )}
-                </div>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center">

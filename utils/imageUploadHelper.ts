@@ -242,3 +242,118 @@ export async function uploadImagesToStorageAndGetUrls(listingId: string, files: 
 
   return uploadedUrls;
 }
+
+/**
+ * Deletes images from both Supabase Storage and the property_images table.
+ * 
+ * This function:
+ * 1. Validates user authentication
+ * 2. Retrieves image metadata from database
+ * 3. Deletes files from Supabase Storage
+ * 4. Removes metadata from property_images table
+ * 5. Returns array of successfully deleted image IDs
+ * 
+ * @param {string[]} imageIds - Array of image IDs to delete
+ * @returns {Promise<string[]>} Array of successfully deleted image IDs
+ * @throws {Error} When user is not authenticated or deletion fails
+ */
+export async function deleteImagesFromStorageAndDatabase(imageIds: string[]): Promise<string[]> {
+  // Check authentication
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    throw new Error('You must be logged in to delete images');
+  }
+
+  console.log(`[Image Deletion] Starting deletion for ${imageIds.length} images by user ${user.id}`);
+  
+  const deletedImageIds: string[] = [];
+
+  for (const imageId of imageIds) {
+    try {
+      console.log(`[Image Deletion] Processing image: ${imageId}`);
+      
+      // Try to get image metadata with more debug info
+      const { data: imageData, error: fetchError, status, statusText } = await supabase
+        .from('property_images')
+        .select('url, listing_id')
+        .eq('id', imageId)
+        .maybeSingle(); // Use maybeSingle instead of single to avoid errors when not found
+
+      console.log(`[Image Deletion] Query result for ${imageId}:`, {
+        data: imageData,
+        error: fetchError,
+        status,
+        statusText
+      });
+
+      if (fetchError) {
+        console.error(`[Deletion Failed] Image ${imageId}: Database query error:`, fetchError);
+        continue;
+      }
+
+      if (!imageData) {
+        console.warn(`[Deletion Skipped] Image ${imageId}: Not found in database (may have been deleted already)`);
+        // Don't treat this as an error - the image is already gone
+        deletedImageIds.push(imageId);
+        continue;
+      }
+
+      console.log(`[Image Deletion] Found image data:`, imageData);
+
+      // Extract storage path from public URL
+      let storagePath = null;
+      if (imageData.url) {
+        try {
+          // Public URLs are in format: https://[project].supabase.co/storage/v1/object/public/[bucket]/[path]
+          const url = new URL(imageData.url);
+          const pathParts = url.pathname.split('/');
+          const bucketIndex = pathParts.findIndex(part => part === STORAGE_BUCKET);
+          if (bucketIndex !== -1 && bucketIndex < pathParts.length - 1) {
+            // Get everything after the bucket name
+            storagePath = pathParts.slice(bucketIndex + 1).join('/');
+          }
+        } catch (urlError) {
+          console.warn(`[Image Deletion] Could not parse URL: ${imageData.url}`, urlError);
+        }
+      }
+
+      // Delete from storage if we have a valid storage path
+      if (storagePath) {
+        console.log(`[Image Deletion] Deleting from storage: ${storagePath}`);
+        const { error: storageError } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .remove([storagePath]);
+
+        if (storageError) {
+          console.error(`[Storage Deletion Failed] Image ${imageId}:`, storageError);
+          // Continue with database deletion even if storage deletion fails
+        } else {
+          console.log(`[Storage Deletion Success] Image ${imageId} removed from storage`);
+        }
+      } else {
+        console.warn(`[Storage Deletion Skipped] Image ${imageId}: Could not determine storage path from URL: ${imageData.url}`);
+      }
+
+      // Delete from database
+      console.log(`[Image Deletion] Deleting from database: ${imageId}`);
+      const { error: dbError } = await supabase
+        .from('property_images')
+        .delete()
+        .eq('id', imageId);
+
+      if (dbError) {
+        console.error(`[Database Deletion Failed] Image ${imageId}:`, dbError);
+        continue;
+      }
+
+      deletedImageIds.push(imageId);
+      console.log(`[Deletion Success] Image ${imageId} deleted successfully`);
+
+    } catch (error) {
+      console.error(`[Deletion Error] Image ${imageId}:`, error);
+    }
+  }
+
+  console.log(`[Image Deletion Complete] ${deletedImageIds.length}/${imageIds.length} images deleted successfully`);
+  return deletedImageIds;
+}

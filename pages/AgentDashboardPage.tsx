@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { PropertyListing, User, AgentMetrics, UserRole, PropertyImage } from '../types';
 import { listingService } from '../services/listingService';
 import { useAuth } from '../hooks/useAuth';
-import { uploadImagesToStorageAndSaveMetadata } from '../utils/imageUploadHelper';
+import { uploadImagesToStorageAndSaveMetadata, deleteImagesFromStorageAndDatabase } from '../utils/imageUploadHelper';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -72,12 +72,30 @@ const AgentDashboardPage: React.FC = () => {
 
   const handleFormSubmit = async (
     formData: Omit<PropertyListing, 'id' | 'createdAt' | 'updatedAt' | 'views' | 'saves' | 'agent' | 'images'>,
-    imageFiles: File[]
+    imageFiles: File[],
+    imagesToRemove?: string[]
   ) => {
     try {
       let savedListing: PropertyListing;
       if (editingListing) {
         savedListing = await listingService.updateListing(editingListing.id, formData);
+        
+        // Handle image removal for existing listings
+        if (imagesToRemove && imagesToRemove.length > 0) {
+          console.log(`[Form Submit] Attempting to delete ${imagesToRemove.length} images:`, imagesToRemove);
+          try {
+            const deletedImageIds = await deleteImagesFromStorageAndDatabase(imagesToRemove);
+            console.log(`[Form Submit] Successfully deleted ${deletedImageIds.length}/${imagesToRemove.length} images`);
+            
+            if (deletedImageIds.length < imagesToRemove.length) {
+              console.warn(`[Form Submit] Some images may have already been deleted or were not found`);
+            }
+          } catch (imageDeleteError) {
+            console.error(`[Form Submit] Image deletion failed:`, imageDeleteError);
+            // Don't fail the entire form submission if image deletion fails
+            // The listing update was successful, just log the error
+          }
+        }
       } else {
         // For new listings, we'll upload images separately after creating the listing
         savedListing = await listingService.createListing({
