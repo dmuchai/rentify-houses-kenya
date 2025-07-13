@@ -4,6 +4,7 @@ import { PropertyListing, RatingReview, UserRole } from '../types';
 import { listingService } from '../services/listingService';
 import { geminiService } from '../services/geminiService';
 import ImageCarousel from '../components/ImageCarousel';
+import SinglePropertyMap from '../components/SinglePropertyMap';
 import RatingStars from '../components/RatingStars';
 import Button from '../components/Button';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -194,6 +195,21 @@ const ListingDetailPage: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Location & Map Section */}
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold text-gray-800 mb-3">Location</h2>
+          <div className="mb-3">
+            <p className="text-gray-700">{listing.location.address}</p>
+            <p className="text-gray-600 text-sm">{listing.location.neighborhood}, {listing.location.county}</p>
+          </div>
+          <SinglePropertyMap 
+            location={listing.location}
+            title={listing.title}
+            height="400px"
+            className="shadow-md"
+          />
+        </div>
 
         {/* Rent Estimate Section */}
         <div className="mb-6 p-4 bg-blue-50 rounded-lg">

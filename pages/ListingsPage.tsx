@@ -5,6 +5,7 @@ import ListingCard from '../components/ListingCard';
 import SearchBar, { SearchFilters } from '../components/SearchBar';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
+import PropertyMap from '../components/PropertyMap';
 import { PropertyListing } from '../types';
 import { listingService } from '../services/listingService';
 import { KenyanCounties } from '../constants'; // For filter options
@@ -16,6 +17,8 @@ const ListingsPage: React.FC = () => {
   const [listings, setListings] = useState<PropertyListing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showMapView, setShowMapView] = useState(false);
+  const [selectedListingId, setSelectedListingId] = useState<string | undefined>();
   const locationHook = useLocation(); // from react-router-dom
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -140,12 +143,67 @@ const ListingsPage: React.FC = () => {
         <div className="flex justify-center py-10"><LoadingSpinner text="Searching for listings..." /></div>
       ) : listings.length > 0 ? (
         <section>
-          <p className="text-sm text-gray-600 mb-4">Found {listings.length} listing{listings.length === 1 ? '' : 's'}.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {listings.map((listing) => (
-              <ListingCard key={listing.id} listing={listing} />
-            ))}
+          <div className="flex justify-between items-center mb-4">
+            <p className="text-sm text-gray-600">Found {listings.length} listing{listings.length === 1 ? '' : 's'}.</p>
+            <div className="flex space-x-2">
+              <Button 
+                variant={!showMapView ? "primary" : "outline"} 
+                size="sm" 
+                onClick={() => setShowMapView(false)}
+              >
+                📋 List View
+              </Button>
+              <Button 
+                variant={showMapView ? "primary" : "outline"} 
+                size="sm" 
+                onClick={() => setShowMapView(true)}
+              >
+                🗺️ Map View
+              </Button>
+            </div>
           </div>
+
+          {showMapView ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Map Section */}
+              <div className="lg:sticky lg:top-4">
+                <PropertyMap 
+                  listings={listings.map(listing => ({
+                    id: listing.id,
+                    title: listing.title,
+                    location: listing.location
+                  }))}
+                  selectedListingId={selectedListingId}
+                  onListingSelect={setSelectedListingId}
+                  height="600px"
+                  className="shadow-md"
+                />
+              </div>
+              
+              {/* Listings Section */}
+              <div className="space-y-4 max-h-[600px] overflow-y-auto">
+                {listings.map((listing) => (
+                  <div 
+                    key={listing.id}
+                    className={`transition-all duration-200 ${
+                      selectedListingId === listing.id 
+                        ? 'ring-2 ring-green-500 ring-opacity-50' 
+                        : ''
+                    }`}
+                    onClick={() => setSelectedListingId(listing.id)}
+                  >
+                    <ListingCard listing={listing} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {listings.map((listing) => (
+                <ListingCard key={listing.id} listing={listing} />
+              ))}
+            </div>
+          )}
           {/* Pagination could be added here */}
         </section>
       ) : (
